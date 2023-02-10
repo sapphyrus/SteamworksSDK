@@ -16,6 +16,8 @@
 
 #include "gameenginesdl.h"
 
+#include "steam/isteamdualsense.h"
+
 CGameEngineGL *g_engine;		// dxabstract will use this.. it is set by the engine constructor
 
 IGameEngine *CreateGameEngineSDL( )
@@ -113,6 +115,23 @@ CGameEngineGL::CGameEngineGL( )
 	m_rgflQuadsColorData = new GLubyte[ 16*QUAD_BUFFER_TOTAL_SIZE ];
 	m_rgflQuadsTextureData = new GLfloat[ 8*QUAD_BUFFER_TOTAL_SIZE ];
 	m_dwQuadsToFlush = 0;
+
+	// clear the action handles
+	for ( int i = 0; i <eControllerDigitalAction_NumActions; i++ )
+	{
+		m_ControllerDigitalActionHandles[i] = 0;
+		m_ControllerDigitalActionOrigins[i] = k_EInputActionOrigin_None;
+	}
+	for ( int i = 0; i <eControllerAnalogAction_NumActions; i++ )
+	{
+		m_ControllerAnalogActionHandles[i] = 0;
+		m_ControllerAnalogActionOrigins[i] = k_EInputActionOrigin_None;
+	}
+	for ( int i = 0; i <eControllerActionSet_NumSets; i++ )
+	{
+		m_ControllerActionSetHandles[i] = 0;
+	}
+	m_ActiveControllerHandle = 0;
 
 	TTF_Init();
 
@@ -878,25 +897,7 @@ bool CGameEngineGL::BDrawString( HGAMEFONT hFont, RECT rect, DWORD dwColor, DWOR
 		static SDL_Color white = { 0xff, 0xff, 0xff, 0xff };
 
 		// Calculate the text block size
-		int nWrapLength = 0;
-		int w, h;
-		char *s = (char *)pchText;
-		for ( char *p = strchr( s, '\n' ); p; p = strchr( s, '\n' ) )
-		{
-			*p = '\0';
-			if ( TTF_SizeUTF8( m_MapGameFonts[ hFont ], s, &w, &h ) == 0 )
-			{
-				nWrapLength = std::max( w, nWrapLength );
-			}
-			*p = '\n';
-			s = p + 1;
-		}
-		if ( TTF_SizeUTF8( m_MapGameFonts[ hFont ], s, &w, &h ) == 0 )
-		{
-			nWrapLength = std::max( w, nWrapLength );
-		}
-			
-		SDL_Surface *surface = TTF_RenderUTF8_Blended_Wrapped( m_MapGameFonts[ hFont ], pchText, white, nWrapLength );
+		SDL_Surface *surface = TTF_RenderUTF8_Blended( m_MapGameFonts[ hFont ], pchText, white );
 		if ( !surface )
 		{
 			OutputDebugString( "Out of memory\n" );
@@ -971,7 +972,7 @@ bool CGameEngineGL::BDrawString( HGAMEFONT hFont, RECT rect, DWORD dwColor, DWOR
 		nLeft = rect.right - nWidth;
 	}
 
-//printf("Drawing text '%s' at %d,%d %dx%d {%d,%d %d,%d}\n", pchText, nLeft, nTop, nWidth, nHeight, rect.left, rect.top, rect.right, rect.bottom);
+    //dprintf(2, "Drawing text '%s' at %d,%d %dx%d {%ld,%ld %ld,%ld}\n", pchText, nLeft, nTop, nWidth, nHeight, rect.left, rect.top, rect.right, rect.bottom);
 	return BDrawTexturedRect( nLeft, nTop, nLeft + nWidth, nTop + nHeight, 0.0f, 0.0f, u, v, dwColor, hTexture );
 }
 
@@ -1240,7 +1241,7 @@ void CGameEngineGL::FindActiveSteamInputDevice( )
 
 	// See how many Steam Controllers are active. 
 	ControllerHandle_t pHandles[STEAM_CONTROLLER_MAX_COUNT];
-	int nNumActive =SteamInput()->GetConnectedControllers( pHandles );
+	int nNumActive = SteamInput()->GetConnectedControllers( pHandles );
 
 	// If there's an active controller, and if we're not already using it, select the first one.
 	if ( nNumActive && (m_ActiveControllerHandle != pHandles[0]) )
@@ -1310,6 +1311,30 @@ void CGameEngineGL::PollSteamInput( )
 void CGameEngineGL::SetControllerColor( uint8 nColorR, uint8 nColorG, uint8 nColorB, unsigned int nFlags )
 {
 	SteamInput()->SetLEDColor( m_ActiveControllerHandle, nColorR, nColorG, nColorB, nFlags );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Set the trigger effect on DualSense controllers
+//-----------------------------------------------------------------------------
+void CGameEngineGL::SetTriggerEffect( bool bEnabled )
+{
+	ScePadTriggerEffectParam param;
+
+	memset( &param, 0, sizeof( param ) );
+	param.triggerMask = SCE_PAD_TRIGGER_EFFECT_TRIGGER_MASK_R2;
+
+	// Clear any existing effect
+	param.command[ SCE_PAD_TRIGGER_EFFECT_PARAM_INDEX_FOR_R2 ].mode = SCE_PAD_TRIGGER_EFFECT_MODE_OFF;
+	SteamInput()->SetDualSenseTriggerEffect( m_ActiveControllerHandle, &param );
+
+	if ( bEnabled )
+	{
+		param.command[ SCE_PAD_TRIGGER_EFFECT_PARAM_INDEX_FOR_R2 ].mode = SCE_PAD_TRIGGER_EFFECT_MODE_VIBRATION;
+		param.command[ SCE_PAD_TRIGGER_EFFECT_PARAM_INDEX_FOR_R2 ].commandData.vibrationParam.position = 5;
+		param.command[ SCE_PAD_TRIGGER_EFFECT_PARAM_INDEX_FOR_R2 ].commandData.vibrationParam.amplitude = 5;
+		param.command[ SCE_PAD_TRIGGER_EFFECT_PARAM_INDEX_FOR_R2 ].commandData.vibrationParam.frequency = 8;
+		SteamInput()->SetDualSenseTriggerEffect( m_ActiveControllerHandle, &param );
+	}
 }
 
 //-----------------------------------------------------------------------------

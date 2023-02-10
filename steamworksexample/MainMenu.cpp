@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2008, Valve LLC, All rights reserved. ============
+//========= Copyright ï¿½ 1996-2008, Valve LLC, All rights reserved. ============
 //
 // Purpose: Class to define the main game menu
 //
@@ -64,6 +64,8 @@ void CMainMenu::SetupMenu()
 	}
 
 	AddMenuItem( MenuItem_t( "In-game Store", k_EClientInGameStore ) );
+
+	AddMenuItem( MenuItem_t( "OverlayAPI", k_EClientOverlayAPI ) );
 
 	AddMenuItem( MenuItem_t( "Exit Game", k_EClientGameExiting ) );
 }

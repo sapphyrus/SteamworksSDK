@@ -26,6 +26,7 @@
 #include "steam/steamencryptedappticket.h"
 #include "RemotePlay.h"
 #include "ItemStore.h"
+#include "OverlayExamples.h"
 #ifdef WIN32
 #include <direct.h>
 #else
@@ -170,6 +171,8 @@ void CSpaceWarClient::Init( IGameEngine *pGameEngine )
 	m_pItemStore = new CItemStore( pGameEngine );
 	m_pItemStore->LoadItemsWithPrices();
 
+	m_pOverlayExamples = new COverlayExamples( pGameEngine );
+
 	LoadWorkshopItems();
 }
 
@@ -272,7 +275,7 @@ void CSpaceWarClient::DisconnectFromServer()
 	}
 
 	if ( m_hConnServer != k_HSteamNetConnection_Invalid )
-		SteamNetworkingSockets()->CloseConnection( m_hConnServer, EDisconnectReason::k_EDRClientDisconnect, nullptr, false );
+		SteamNetworkingSockets()->CloseConnection( m_hConnServer, k_EDRClientDisconnect, nullptr, false );
 	m_steamIDGameServer = CSteamID();
 	m_hConnServer = k_HSteamNetConnection_Invalid;
 }
@@ -663,10 +666,10 @@ void CSpaceWarClient::OnNetConnectionStatusChanged(SteamNetConnectionStatusChang
 		SteamNetworkingSockets()->CloseConnection(m_hConn, m_info.m_eEndReason, nullptr, false);
 		switch (m_info.m_eEndReason)
 		{
-		case EDisconnectReason::k_EDRServerReject:
+		case k_EDRServerReject:
 			OnReceiveServerAuthenticationResponse(false, 0);
 			break;
-		case EDisconnectReason::k_EDRServerFull:
+		case k_EDRServerFull:
 			OnReceiveServerFullResponse();
 			break;
 		}
@@ -1048,6 +1051,15 @@ void CSpaceWarClient::OnMenuSelection( PurchaseableItem_t selection )
 
 
 //-----------------------------------------------------------------------------
+// Purpose: Handles menu actions when viewing Overlay Examples
+//-----------------------------------------------------------------------------
+void CSpaceWarClient::OnMenuSelection( OverlayExample_t selection )
+{
+	m_pOverlayExamples->OnMenuSelection( selection );
+}
+
+
+//-----------------------------------------------------------------------------
 // Purpose: For a player in game, set the appropriate rich presence keys for display
 // in the Steam friends list and return the value for steam_display
 //-----------------------------------------------------------------------------
@@ -1233,6 +1245,12 @@ void CSpaceWarClient::OnGameStateChanged( EClientGameState eGameStateNew )
 		// we've switched to the item store
 		m_pItemStore->Show();
 		SteamFriends()->SetRichPresence( "status", "Viewing Item Store" );
+	}
+	else if ( m_eGameState == k_EClientOverlayAPI )
+	{
+		// we've switched to the item store
+		m_pOverlayExamples->Show();
+		SteamFriends()->SetRichPresence( "status", "Viewing Overlay API Examples" );
 	}
 
 	if ( pchSteamRichPresenceDisplay != NULL )
@@ -1754,6 +1772,14 @@ void CSpaceWarClient::RunFrame()
 
 		if (bEscapePressed)
 			SetGameState(k_EClientGameMenu);
+		break;
+
+	case k_EClientOverlayAPI:
+		m_pStarField->Render();
+		m_pOverlayExamples->RunFrame();
+
+		if ( bEscapePressed )
+			SetGameState( k_EClientGameMenu );
 		break;
 		
 	default:
