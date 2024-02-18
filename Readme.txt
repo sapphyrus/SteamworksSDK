@@ -9,6 +9,11 @@ Welcome to the Steamworks SDK.  For documentation please see our partner
 website at: http://partner.steamgames.com
 
 ----------------------------------------------------------------
+v1.58a 26th October 2023
+----------------------------------------------------------------
+Fixes to steam_api_flat.h
+
+----------------------------------------------------------------
 v1.58 15th September 2023
 ----------------------------------------------------------------
 ISteamRemotePlay
